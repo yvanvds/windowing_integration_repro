@@ -131,7 +131,10 @@ cannot pass.
 
 [`.github/workflows/repro.yaml`](.github/workflows/repro.yaml) runs each test
 as its own job on `windows-latest` and on `ubuntu-latest` (headless Weston) at
-the pinned revision.
+the pinned revision
+([run 42489924014](https://github.com/yvanvds/windowing_integration_repro/actions/runs/42489924014)).
+The Linux results are the same on a real KDE Plasma 6 Wayland desktop and in a
+headless KWin.
 
 | Test | Windows | Linux (Wayland) |
 | --- | --- | --- |
