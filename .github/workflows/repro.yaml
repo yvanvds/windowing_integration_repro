@@ -4,7 +4,7 @@ name: repro
 # Expected outcome at the pinned master revision (.fvmrc):
 #
 #   text_input_test.dart         windows: FAIL (PlatformException, view_id=1)   linux: pass
-#   native_owner_test.dart       windows: see log                                linux: FAIL (segfault)
+#   native_owner_test.dart       windows: FAIL (app dies at owner swap)          linux: FAIL (segfault)
 #   control/..._test.dart        windows: pass  (real engine id, native owner)
 #
 # The control job does not run on Linux: under Xvfb a second native Flutter

@@ -79,6 +79,15 @@ Thread 1 "windowing_integ" received signal SIGSEGV, Segmentation fault.
 (`packages/flutter_test/lib/src/window.dart`). On Linux the engine id is the
 `FlEngine*` address, so the Linux owner calls `fl_view_new_for_engine` on address `0x1`.
 
+**Windows** fails even earlier. The `WindowingOwnerWin32` constructor passes
+`platformDispatcher.engineId` to `initializeWindowing` straight away, so the
+app dies on the owner swap itself, before the test body runs (no `engineId`
+lines are printed). `flutter test -d windows` reports:
+
+```
+Failed to load ".../integration_test/native_owner_test.dart": Connection closed before test suite loaded.
+```
+
 ## Control: forwarding the real engine id
 
 [`integration_test/control/`](integration_test/control/) runs the same scenario,
@@ -104,6 +113,14 @@ is a headless GL limit and not related to this issue.
 
 [`.github/workflows/repro.yaml`](.github/workflows/repro.yaml) runs each test
 as its own job on `windows-latest` and `ubuntu-latest` at the pinned revision.
+Results of the first run
+([42488464234](https://github.com/yvanvds/windowing_integration_repro/actions/runs/42488464234)):
+
+| Test | Windows | Linux (Xvfb) |
+| --- | --- | --- |
+| `text_input_test.dart` | fails: 3x `PlatformException`, view_id=1 | passes |
+| `native_owner_test.dart` | fails: app dies at the owner swap | fails: segfault |
+| `control/native_window_with_real_engine_id_test.dart` | passes | not run (see above) |
 
 ## Expected
 
