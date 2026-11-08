@@ -103,24 +103,41 @@ reports two views) and the test passes.
 
 ```
 flutter test integration_test/control/native_window_with_real_engine_id_test.dart -d windows
+flutter test integration_test/control/native_window_with_real_engine_id_test.dart -d linux
 ```
 
-On Linux the control needs a real display. Under Xvfb a second native Flutter
-window fails with a GLX `BadAccess` even in the plain app outside any test, which
-is a headless GL limit and not related to this issue.
+It passes on Windows, and on Linux under Wayland.
+
+## Running on Linux without a desktop
+
+Every Linux result here was checked on Wayland, in a headless compositor, so
+no windows open on the desktop. For example, with KWin:
+
+```
+kwin_wayland --virtual --width 1920 --height 1080 --socket wayland-repro \
+  --exit-with-session "env -u DISPLAY WAYLAND_DISPLAY=wayland-repro GDK_BACKEND=wayland \
+  flutter test integration_test/<file>.dart -d linux"
+```
+
+or with Weston (`weston --backend=headless --socket=wayland-repro &`, then the
+same `env ... flutter test` line), which is what CI does.
+
+Avoid Xvfb for this repro. The two bug tests behave the same under Xvfb, but a
+second native window fails with a GLX `BadAccess` (`request_code 150 (GLX)
+minor_code 26`) there, even in the plain app outside any test, so the control
+cannot pass.
 
 ## CI
 
 [`.github/workflows/repro.yaml`](.github/workflows/repro.yaml) runs each test
-as its own job on `windows-latest` and `ubuntu-latest` at the pinned revision.
-Results of the first run
-([42488464234](https://github.com/yvanvds/windowing_integration_repro/actions/runs/42488464234)):
+as its own job on `windows-latest` and on `ubuntu-latest` (headless Weston) at
+the pinned revision.
 
-| Test | Windows | Linux (Xvfb) |
+| Test | Windows | Linux (Wayland) |
 | --- | --- | --- |
 | `text_input_test.dart` | fails: 3x `PlatformException`, view_id=1 | passes |
 | `native_owner_test.dart` | fails: app dies at the owner swap | fails: segfault |
-| `control/native_window_with_real_engine_id_test.dart` | passes | not run (see above) |
+| `control/native_window_with_real_engine_id_test.dart` | passes | passes |
 
 ## Expected
 

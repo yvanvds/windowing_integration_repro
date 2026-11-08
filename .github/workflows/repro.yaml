@@ -5,11 +5,10 @@ name: repro
 #
 #   text_input_test.dart         windows: FAIL (PlatformException, view_id=1)   linux: pass
 #   native_owner_test.dart       windows: FAIL (app dies at owner swap)          linux: FAIL (segfault)
-#   control/..._test.dart        windows: pass  (real engine id, native owner)
+#   control/..._test.dart        windows: pass                                   linux: pass
 #
-# The control job does not run on Linux: under Xvfb a second native Flutter
-# window dies with a GLX BadAccess even outside any test (headless GL limit,
-# unrelated to this issue). On a real Linux display it passes.
+# Linux runs on Wayland, in a headless Weston. Not Xvfb: there a second native
+# Flutter window dies with a GLX BadAccess even outside any test.
 
 on:
   push:
@@ -28,9 +27,6 @@ jobs:
           - integration_test/text_input_test.dart
           - integration_test/native_owner_test.dart
           - integration_test/control/native_window_with_real_engine_id_test.dart
-        exclude:
-          - os: ubuntu-latest
-            test: integration_test/control/native_window_with_real_engine_id_test.dart
     steps:
       - uses: actions/checkout@v4
 
@@ -42,7 +38,7 @@ jobs:
       - if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev xvfb
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev weston
 
       - uses: subosito/flutter-action@v2
         with:
@@ -58,6 +54,20 @@ jobs:
         if: runner.os == 'Windows'
         run: flutter test ${{ matrix.test }} -d windows
 
-      - name: flutter test (Linux, Xvfb)
+      - name: flutter test (Linux, headless Wayland)
         if: runner.os == 'Linux'
-        run: xvfb-run -a -s "-screen 0 1920x1080x24" flutter test ${{ matrix.test }} -d linux
+        run: |
+          export XDG_RUNTIME_DIR=$(mktemp -d)
+          chmod 700 "$XDG_RUNTIME_DIR"
+          weston --backend=headless --width=1920 --height=1080 \
+            --socket=wayland-repro --idle-time=0 &> weston.log &
+          for _ in $(seq 50); do
+            [ -S "$XDG_RUNTIME_DIR/wayland-repro" ] && break
+            sleep 0.2
+          done
+          env -u DISPLAY WAYLAND_DISPLAY=wayland-repro GDK_BACKEND=wayland \
+            flutter test ${{ matrix.test }} -d linux
+
+      - name: weston log
+        if: always() && runner.os == 'Linux'
+        run: cat weston.log || true
