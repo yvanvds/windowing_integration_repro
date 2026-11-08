@@ -1,0 +1,63 @@
+name: repro
+
+# Runs each integration test as its own job so every outcome is visible.
+# Expected outcome at the pinned master revision (.fvmrc):
+#
+#   text_input_test.dart         windows: FAIL (PlatformException, view_id=1)   linux: pass
+#   native_owner_test.dart       windows: see log                                linux: FAIL (segfault)
+#   control/..._test.dart        windows: pass  (real engine id, native owner)
+#
+# The control job does not run on Linux: under Xvfb a second native Flutter
+# window dies with a GLX BadAccess even outside any test (headless GL limit,
+# unrelated to this issue). On a real Linux display it passes.
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / ${{ matrix.test }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        test:
+          - integration_test/text_input_test.dart
+          - integration_test/native_owner_test.dart
+          - integration_test/control/native_window_with_real_engine_id_test.dart
+        exclude:
+          - os: ubuntu-latest
+            test: integration_test/control/native_window_with_real_engine_id_test.dart
+    steps:
+      - uses: actions/checkout@v4
+
+      # A master pin makes flutter-action clone flutter/flutter, which has
+      # paths beyond Windows' MAX_PATH.
+      - if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev xvfb
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: master
+          flutter-version-file: .fvmrc
+          cache: true
+
+      - run: flutter config --enable-windowing
+      - run: flutter --version
+      - run: flutter pub get
+
+      - name: flutter test (Windows)
+        if: runner.os == 'Windows'
+        run: flutter test ${{ matrix.test }} -d windows
+
+      - name: flutter test (Linux, Xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" flutter test ${{ matrix.test }} -d linux

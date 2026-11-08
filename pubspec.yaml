@@ -1,0 +1,22 @@
+name: windowing_integration_repro
+description: "Minimal repro for flutter/flutter#195919 (windowing + integration_test)."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.15.0-101.0.dev
+
+dependencies:
+  flutter:
+    sdk: flutter
+  material_ui: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
